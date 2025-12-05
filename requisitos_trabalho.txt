@@ -1,0 +1,67 @@
+Trabalho para a AP3 de Construção de Compiladores
+
+
+Objetivo
+O objetivo deste trabalho é implementar um analisador léxico e sintático para a
+linguagem de programação C, desenvolvendo uma compreensão mais profunda
+sobre as fases de análise de compiladores. O aluno será responsável por
+construir um analisador que consiga interpretar programas simples escritos em C,
+verificando erros de sintaxe e gerando uma representação intermediária ou uma
+árvore de sintaxe abstrata (AST).
+
+Descrição das Atividades
+Os(as) alunos(as) deverão realizar as seguintes tarefas:
+
+1. Analisador Léxico
+Implementar um analisador léxico para a linguagem C que seja capaz de identificar e classificar os seguintes elementos:
+• Palavras-chave: int, float, for, if, etc.
+• Identificadores: Nomes de variáveis e funções.
+• Literais: Inteiros, flutuantes, strings, caracteres.
+• Operadores: Aritméticos, lógicos, de atribuição, etc.
+• Delimitadores: Parênteses, chaves, ponto e vírgula.
+• Comentários: Comentários de linha e de bloco.
+A saída do analisador léxico deve ser uma lista de tokens com os tipos e valores identificados.
+
+2. Analisador Sintático
+Implementar um analisador sintático que valide a estrutura do código fonte conforme as regras gramaticais da linguagem C.
+O analisador sintático deve construir uma árvore de sintaxe abstrata (AST) ou uma estrutura de representação intermediária que descreva a estrutura hierárquica do programa.
+• Implementar as principais construções da linguagem C, como:
+  – Declarações de variáveis.
+  – Estruturas de controle: if, for, while.
+  – Expressões aritméticas e lógicas.
+  – Blocos de código e funções.
+• Detectar erros de sintaxe e exibir mensagens de erro adequadas.
+
+3. Testes e Validação
+Criar exemplos de programas em C (simples e com erros) e testar o analisador léxico e sintático. O sistema deve ser capaz de gerar mensagens de erro informativas em casos de código inválido e produzir a AST para programas válidos.
+
+Requisitos Técnicos
+• Linguagem de Programação: O trabalho pode ser implementado em qualquer linguagem de programação que o aluno preferir. Recomenda-se o uso de Python, C ou Java para a implementação dos analisadores.
+• Bibliotecas/Frameworks: O uso de bibliotecas como PLY (Python Lex-Yacc) ou Flex/Bison (C/C++) pode ser uma escolha interessante para a implementação.
+• Saída do Analisador: O analisador léxico deve gerar uma lista de tokens identificados, e o analisador sintático deve produzir uma árvore de sintaxe abstrata (AST).
+• Manejo de Erros: O sistema deve identificar e relatar erros léxicos e sintáticos com mensagens de erro claras, indicando a linha e a posição do erro no código-fonte.
+
+Relatório Técnico
+O relatório deverá conter os seguintes tópicos:
+• Introdução: Explicação sobre a importância da análise léxica e sintática em compiladores e a aplicação desses conceitos na linguagem C.
+• Metodologia: Descrição da abordagem adotada para a implementação do analisador léxico e sintático. Detalhes sobre a gramática usada, estruturas de dados, algoritmos implementados e técnicas de tratamento de erros.
+• Resultados: Demonstração dos resultados obtidos ao rodar o analisador com exemplos de programas em C, incluindo a árvore sintática gerada ou mensagens de erro geradas.
+(Observação: Relatório técnico deve conter no mínimo 3 páginas.)
+• Discussão: Reflexão sobre os desafios enfrentados na implementação do analisador e comparação entre os métodos utilizados.
+• Conclusões: Resumo das principais conquistas do trabalho e sugestões para possíveis melhorias ou próximos passos no desenvolvimento.
+
+Entrega
+• Código-fonte: Implementação do código-fonte, com documentação clara e comentários explicativos.
+• Relatório: Relatório técnico em formato PDF.
+• Exemplos de Entrada e Saída: Exemplos de código C e saídas geradas pelos analisadores (tokens, AST, mensagens de erro).
+
+Avaliação
+A avaliação será baseada nos seguintes critérios:
+• Corretude: O analisador deve identificar corretamente os tokens e construir a AST corretamente, identificando e relatando erros de sintaxe.
+• Qualidade do Código: O código deve ser bem estruturado, modular e comentado adequadamente.
+• Documentação: O relatório técnico deve ser claro, bem escrito e abordar todos os pontos solicitados.
+• Testes: A realização de testes adequados com programas válidos e inválidos, demonstrando o funcionamento correto do analisador.
+
+OBSERVAÇÃO 1: os exemplos de testes de código podem ser 10, sendo 5 com erros e 5 sem erros.
+OBSERVAÇÃO 2: criar vídeo explicativo de até 15 minutos sobre o trabalho.
+OBSERVAÇÃO 3: o simulador pode ser desenvolvido em linguagem C ou Python.

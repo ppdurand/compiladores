@@ -1,0 +1,654 @@
+================================================================================
+                    DOCUMENTAÇÃO DO ANALISADOR SINTÁTICO
+                    Trabalho de Construção de Compiladores
+================================================================================
+
+1. VISÃO GERAL
+================================================================================
+
+O analisador sintático implementado utiliza a biblioteca PLY (Python Lex-Yacc)
+para realizar a análise sintática de código fonte escrito em uma linguagem
+similar a C. O parser constrói uma Árvore de Sintaxe Abstrata (AST) que
+representa a estrutura hierárquica do programa, permitindo validação sintática
+e geração de representações intermediárias.
+
+O parser trabalha em conjunto com o analisador léxico (python_lexer.py), que
+fornece os tokens necessários para a análise sintática.
+
+
+2. ARQUITETURA E ESTRUTURA
+================================================================================
+
+2.1. Componentes Principais
+
+    - ASTNode: Classe que representa nós da árvore sintática
+    - Regras Gramaticais: Funções que definem a gramática da linguagem
+    - Precedência de Operadores: Definição da ordem de avaliação
+    - Tratamento de Erros: Mecanismo de recuperação e reporte de erros
+    - Parser: Objeto principal que realiza o parsing
+
+
+2.2. Fluxo de Processamento
+
+    1. O código fonte é passado para a função parse_code()
+    2. O lexer (analisador léxico) tokeniza o código
+    3. O parser analisa a sequência de tokens conforme as regras gramaticais
+    4. Uma AST é construída durante o processo de parsing
+    5. A AST é retornada para análise ou geração de código
+
+
+3. REPRESENTAÇÃO DA AST (ÁRVORE DE SINTAXE ABSTRATA)
+================================================================================
+
+3.1. Classe ASTNode
+
+A classe ASTNode é o componente fundamental para representar a estrutura
+hierárquica do programa. Cada nó contém:
+
+    - type: Tipo do nó (ex: 'Program', 'IfStatement', 'BinaryOp')
+    - children: Lista de nós filhos (estrutura hierárquica)
+    - value: Valor associado ao nó (ex: nome de variável, operador, literal)
+    - lineno: Número da linha no código fonte (para mensagens de erro)
+
+Exemplo de estrutura:
+    Program
+    └── StatementList
+        ├── Declaration
+        │   ├── Type: int
+        │   └── ID: x
+        └── IfStatement
+            ├── BinaryOp: >
+            │   ├── ID: x
+            │   └── Literal: 5
+            └── Block
+                └── StatementList
+                    └── ExpressionStatement
+                        └── Assignment
+                            ├── ID: x
+                            └── Literal: 10
+
+
+3.2. Tipos de Nós da AST
+
+    - Program: Nó raiz que contém todo o programa
+    - StatementList: Lista de statements (comandos)
+    - Declaration: Declaração de variável
+    - ArrayDeclaration: Declaração de array
+    - ExpressionStatement: Statement que é uma expressão
+    - Assignment: Atribuição de valor
+    - ArrayAssignment: Atribuição a elemento de array
+    - BinaryOp: Operação binária (+, -, *, /, ==, etc.)
+    - UnaryOp: Operação unária (!, -, ++, --)
+    - IfStatement: Estrutura condicional if/else
+    - WhileStatement: Loop while
+    - ForStatement: Loop for
+    - Block: Bloco de código delimitado por chaves
+    - FunctionCall: Chamada de função
+    - ArrayAccess: Acesso a elemento de array
+    - Literal: Valores literais (números, strings, caracteres)
+    - ID: Identificador (nome de variável ou função)
+    - Type: Tipo de dado (int, float, char, void)
+
+
+4. GRAMÁTICA E REGRAS DE PRODUÇÃO
+================================================================================
+
+4.1. Estratégia de Parsing
+
+O parser utiliza uma abordagem bottom-up (ascendente) com análise LR (Left-to-
+Right, Rightmost derivation). O PLY implementa o algoritmo LALR(1), que é
+eficiente e adequado para a maioria das linguagens de programação.
+
+As regras gramaticais são definidas usando funções Python com docstrings que
+contêm a gramática em formato BNF (Backus-Naur Form).
+
+
+4.2. Hierarquia Gramatical
+
+    program
+        └── statement_list
+    
+    statement_list
+        └── statement (um ou mais)
+    
+    statement
+        ├── declaration
+        ├── expression_statement
+        ├── if_statement
+        ├── while_statement
+        ├── for_statement
+        ├── return_statement
+        ├── break_statement
+        ├── continue_statement
+        └── block
+
+
+4.3. Declarações de Variáveis
+
+    declaration : type ID SEMICOLON
+                | type ID ASSIGN expression SEMICOLON
+                | type ID LBRACKET INT_LITERAL RBRACKET SEMICOLON
+
+Estratégia:
+    - Suporta três formas de declaração:
+      1. Declaração simples: int x;
+      2. Declaração com inicialização: int x = 10;
+      3. Declaração de array: int arr[10];
+    
+    - Cada forma gera um nó AST diferente para facilitar a análise semântica
+
+
+4.4. Estruturas de Controle
+
+4.4.1. If Statement
+
+    if_statement : IF LPAREN expression RPAREN statement
+                 | IF LPAREN expression RPAREN statement ELSE statement
+
+Estratégia:
+    - O nó IfStatement contém:
+      - Filho 0: condição (expression)
+      - Filho 1: corpo do if (statement)
+      - Filho 2 (opcional): corpo do else (statement)
+    
+    - Permite statement único ou bloco como corpo
+
+
+4.4.2. While Statement
+
+    while_statement : WHILE LPAREN expression RPAREN statement
+
+Estratégia:
+    - Estrutura simples com condição e corpo
+    - O corpo pode ser um statement único ou um bloco
+
+
+4.4.3. For Statement
+
+    for_statement : FOR LPAREN for_init SEMICOLON for_cond SEMICOLON for_update RPAREN statement
+    
+    for_init : type ID
+             | type ID ASSIGN expression
+             | expression
+             | empty
+    
+    for_cond : expression | empty
+    for_update : expression | empty
+
+Estratégia:
+    - Cada parte do for (init, cond, update) pode ser vazia
+    - for_init suporta declaração de variável ou expressão
+    - Permite flexibilidade: for(;;) é válido (loop infinito)
+    
+    - O nó ForStatement contém:
+      - Filho 0: inicialização
+      - Filho 1: condição
+      - Filho 2: atualização
+      - Filho 3: corpo
+
+
+4.5. Expressões
+
+4.5.1. Hierarquia de Expressões
+
+    expression : expression ASSIGN expression          (menor precedência)
+              | expression OR expression
+              | expression AND expression
+              | expression EQUAL expression
+              | expression PLUS expression
+              | expression TIMES expression
+              | factor                                 (maior precedência)
+
+Estratégia:
+    - Expressões são construídas de forma recursiva
+    - A precedência é garantida pela ordem das regras e pela tabela de precedência
+    - Operadores binários geram nós BinaryOp com dois filhos
+
+
+4.5.2. Precedência de Operadores
+
+A precedência é definida explicitamente na tabela:
+
+    (menor precedência)
+    ASSIGN, +=, -=, *=, /=, %=
+    OR
+    AND
+    ==, !=
+    <, <=, >, >=
+    +, -
+    *, /, %
+    NOT, ++, -- (unários)
+    [] (acesso a array)
+    (maior precedência)
+
+Estratégia:
+    - Operadores de menor precedência são processados primeiro na árvore
+    - Isso garante que a árvore reflita a ordem correta de avaliação
+    - Exemplo: a + b * c → BinaryOp(+, a, BinaryOp(*, b, c))
+
+
+4.5.3. Operadores Unários
+
+    expression : NOT expression
+               | MINUS expression
+               | INCREMENT ID
+               | DECREMENT ID
+               | ID INCREMENT
+               | ID DECREMENT
+
+Estratégia:
+    - Suporta pré e pós incremento/decremento
+    - Operadores unários têm alta precedência
+    - Geram nós UnaryOp com um filho
+
+
+4.5.4. Acesso a Arrays
+
+    array_access : ID LBRACKET expression RBRACKET
+    expression : array_access
+
+Estratégia:
+    - Acesso a array tem alta precedência (definida por LBRACKET)
+    - Pode ser usado em expressões: arr[0] + arr[1]
+    - Suporta índices complexos: arr[x + y]
+
+
+4.5.5. Atribuição a Arrays
+
+    expression : array_access ASSIGN expression
+
+Estratégia:
+    - Tratada como caso especial de atribuição
+    - Gera nó ArrayAssignment em vez de Assignment
+    - Permite: arr[0] = 5
+
+
+4.5.6. Chamadas de Função
+
+    expression : ID LPAREN argument_list RPAREN
+               | ID LPAREN RPAREN
+    
+    argument_list : argument_list COMMA expression
+                  | expression
+
+Estratégia:
+    - Suporta funções com zero ou mais argumentos
+    - Argumentos são coletados em um nó ArgumentList
+    - Cada argumento é uma expressão (pode ser complexa)
+
+
+4.6. Blocos de Código
+
+    block : LBRACE statement_list RBRACE
+
+Estratégia:
+    - Blocos agrupam múltiplos statements
+    - Permitem escopo local (para análise semântica futura)
+    - O statement_list dentro do bloco pode ser vazio
+
+
+5. PRECEDÊNCIA E ASSOCIATIVIDADE
+================================================================================
+
+5.1. Tabela de Precedência
+
+A precedência é definida usando tuplas no PLY:
+
+    precedence = (
+        ('right', 'ASSIGN', ...),      # Associatividade à direita
+        ('left', 'OR'),                # Associatividade à esquerda
+        ('left', 'AND'),
+        ...
+    )
+
+5.2. Associatividade
+
+    - LEFT: a + b + c → ((a + b) + c)
+    - RIGHT: a = b = c → (a = (b = c))
+
+Estratégia:
+    - Operadores de atribuição são associativos à direita
+    - Operadores aritméticos são associativos à esquerda
+    - Isso garante a avaliação correta das expressões
+
+
+6. TRATAMENTO DE ERROS
+================================================================================
+
+6.1. Função p_error()
+
+A função p_error() é chamada automaticamente pelo PLY quando um erro sintático
+é detectado.
+
+Estratégia de Tratamento:
+
+    1. Verifica se há um token disponível (p não é None)
+    2. Se houver, exibe:
+       - Número da linha do erro
+       - Token inesperado encontrado
+       - Tipo do token
+       - Contexto (valor do token)
+    3. Se não houver token (fim inesperado), exibe mensagem apropriada
+
+Exemplo de saída:
+    ❌ Erro sintático na linha 10: token inesperado '}' (tipo: RBRACE)
+       Contexto: ...}...
+
+
+6.2. Recuperação de Erros
+
+O PLY possui mecanismos automáticos de recuperação:
+    - Tenta continuar o parsing após um erro
+    - Pode pular tokens até encontrar um ponto de sincronização
+    - Permite detectar múltiplos erros em uma única execução
+
+
+7. CONSTRUÇÃO DO PARSER
+================================================================================
+
+7.1. Inicialização
+
+    parser = yacc.yacc(debug=False, write_tables=False)
+
+Parâmetros:
+    - debug=False: Desabilita modo debug (mais rápido)
+    - write_tables=False: Não escreve tabelas LALR em arquivo
+
+Estratégia:
+    - O PLY gera automaticamente as tabelas de parsing
+    - As tabelas são mantidas em memória para performance
+
+
+7.2. Função parse_code()
+
+    def parse_code(code):
+        try:
+            ast = parser.parse(code, lexer=lexer, tracking=True)
+            return ast
+        except Exception as e:
+            print(f"❌ Erro ao analisar código: {e}")
+            return None
+
+Parâmetros:
+    - code: String com o código fonte
+    - lexer: Objeto lexer do analisador léxico
+    - tracking=True: Habilita rastreamento de linha
+
+Estratégia:
+    - Encapsula o parsing em try/except para tratamento de erros
+    - Retorna None em caso de erro crítico
+    - tracking=True permite mensagens de erro com número de linha
+
+
+8. ESTRATÉGIAS DE IMPLEMENTAÇÃO
+================================================================================
+
+8.1. Bottom-Up Parsing (LALR)
+
+Vantagens:
+    - Eficiente para gramáticas grandes
+    - Suporta precedência de operadores naturalmente
+    - Implementação automática pelo PLY
+
+Como funciona:
+    1. Empilha tokens até encontrar o lado direito de uma regra
+    2. Reduz usando a regra (substitui tokens pelo não-terminal)
+    3. Repete até reduzir ao símbolo inicial (program)
+
+
+8.2. Construção da AST
+
+Estratégia:
+    - Cada regra gramatical constrói um nó AST
+    - p[0] recebe o nó construído
+    - p[1], p[2], ... são os elementos da regra (filhos)
+    
+Exemplo:
+    def p_expression_plus(p):
+        'expression : expression PLUS expression'
+        p[0] = ASTNode('BinaryOp', [p[1], p[3]], value=p[2])
+    
+    - p[1] = expressão à esquerda
+    - p[2] = operador '+'
+    - p[3] = expressão à direita
+    - p[0] = nó BinaryOp com os dois filhos
+
+
+8.3. Tratamento de Listas
+
+Para listas (como argument_list, statement_list):
+
+Estratégia Recursiva:
+    - Primeira regra: lista com um elemento
+    - Segunda regra: lista com n elementos (recursiva)
+    
+Exemplo:
+    argument_list : argument_list COMMA expression  # n elementos
+                  | expression                      # 1 elemento
+
+Construção da AST:
+    - Se len(p) == 3: adiciona novo elemento à lista existente
+    - Se len(p) == 2: cria nova lista com um elemento
+
+
+8.4. Tratamento de Opcionais
+
+Para elementos opcionais (como else no if):
+
+Estratégia:
+    - Duas regras separadas: uma com, outra sem o elemento opcional
+    - O nó AST pode ter número variável de filhos
+    
+Exemplo:
+    if_statement : IF ... statement           # sem else
+                 | IF ... statement ELSE ...  # com else
+
+
+9. EXEMPLOS DE USO
+================================================================================
+
+9.1. Exemplo 1: Declaração Simples
+
+Código:
+    int x = 10;
+
+AST gerada:
+    Program
+    └── StatementList
+        └── Declaration
+            ├── Type: int
+            ├── ID: x
+            └── Literal: 10
+
+
+9.2. Exemplo 2: If Statement
+
+Código:
+    if (x > 5) {
+        x = x + 1;
+    } else {
+        x = x - 1;
+    }
+
+AST gerada:
+    Program
+    └── StatementList
+        └── IfStatement
+            ├── BinaryOp: >
+            │   ├── ID: x
+            │   └── Literal: 5
+            ├── Block
+            │   └── StatementList
+            │       └── ExpressionStatement
+            │           └── Assignment
+            │               ├── ID: x
+            │               └── BinaryOp: +
+            │                   ├── ID: x
+            │                   └── Literal: 1
+            └── Block
+                └── StatementList
+                    └── ExpressionStatement
+                        └── Assignment
+                            ├── ID: x
+                            └── BinaryOp: -
+                                ├── ID: x
+                                └── Literal: 1
+
+
+9.3. Exemplo 3: For Loop
+
+Código:
+    for (int i = 0; i < 10; i++) {
+        x = x + i;
+    }
+
+AST gerada:
+    Program
+    └── StatementList
+        └── ForStatement
+            ├── Declaration
+            │   ├── Type: int
+            │   ├── ID: i
+            │   └── Literal: 0
+            ├── BinaryOp: <
+            │   ├── ID: i
+            │   └── Literal: 10
+            ├── UnaryOp: ++
+            │   └── ID: i
+            └── Block
+                └── StatementList
+                    └── ExpressionStatement
+                        └── Assignment
+                            ├── ID: x
+                            └── BinaryOp: +
+                                ├── ID: x
+                                └── ID: i
+
+
+9.4. Exemplo 4: Expressão Complexa
+
+Código:
+    c = a + b * 2;
+
+AST gerada:
+    Program
+    └── StatementList
+        └── ExpressionStatement
+            └── Assignment
+                ├── ID: c
+                └── BinaryOp: +
+                    ├── ID: a
+                    └── BinaryOp: *
+                        ├── ID: b
+                        └── Literal: 2
+
+Nota: A precedência garante que * seja avaliado antes de +
+
+
+10. LIMITAÇÕES E CONSIDERAÇÕES
+================================================================================
+
+10.1. Limitações Atuais
+
+    - Não implementa análise semântica (verificação de tipos, escopo)
+    - Não suporta definição de funções (apenas chamadas)
+    - Não suporta structs, unions, enums
+    - Não suporta ponteiros
+    - Não suporta operador ternário (? :)
+    - Não suporta switch/case
+    - Não valida se variáveis foram declaradas antes do uso
+
+
+10.2. Extensões Possíveis
+
+    - Adicionar análise semântica
+    - Implementar tabela de símbolos
+    - Suportar definição de funções
+    - Adicionar suporte a structs
+    - Implementar geração de código intermediário
+    - Adicionar otimizações na AST
+
+
+11. TESTES E VALIDAÇÃO
+================================================================================
+
+11.1. Casos de Teste Implementados
+
+O arquivo python_parser.py inclui 4 casos de teste:
+
+    1. Declarações e Expressões Simples
+       - Testa declarações de variáveis
+       - Testa atribuições simples
+       - Testa operadores de atribuição composta
+
+    2. Estruturas de Controle
+       - Testa if/else
+       - Testa while
+       - Testa for
+
+    3. Expressões Complexas
+       - Testa precedência de operadores
+       - Testa expressões com parênteses
+       - Testa operadores lógicos
+
+    4. Arrays e Funções
+       - Testa declaração de arrays
+       - Testa acesso a arrays
+       - Testa atribuição a arrays
+       - Testa chamadas de função
+
+
+11.2. Como Executar Testes
+
+    python python_parser.py
+
+Ou usar a função parse_code() programaticamente:
+
+    from python_parser import parse_code
+    
+    code = "int x = 10;"
+    ast = parse_code(code)
+    if ast:
+        print(ast)
+
+
+12. INTEGRAÇÃO COM O LEXER
+================================================================================
+
+12.1. Dependência
+
+O parser depende do analisador léxico (python_lexer.py):
+
+    from python_lexer import lexer, tokens
+
+12.2. Fluxo de Integração
+
+    1. Lexer tokeniza o código fonte
+    2. Parser recebe stream de tokens
+    3. Parser constrói AST baseado nos tokens
+    4. AST é retornada para uso posterior
+
+
+13. CONCLUSÃO
+================================================================================
+
+O analisador sintático implementado utiliza técnicas modernas de parsing
+(LALR) através da biblioteca PLY, construindo uma AST completa e bem
+estruturada que representa a hierarquia sintática do programa.
+
+A implementação é modular, extensível e bem documentada, permitindo fácil
+adição de novas funcionalidades e integração com outras fases do compilador
+(análise semântica, geração de código, etc.).
+
+A AST gerada pode ser utilizada para:
+    - Validação sintática
+    - Análise semântica
+    - Geração de código intermediário
+    - Otimizações
+    - Geração de código final
+
+
+================================================================================
+                        FIM DA DOCUMENTAÇÃO
+================================================================================
+
